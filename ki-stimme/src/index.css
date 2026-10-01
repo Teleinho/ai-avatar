@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+.mouth-talk {
+  width: 2.5rem;
+  animation: talk 0.25s infinite alternate;
+}
+
+@keyframes talk {
+  from { height: 0.25rem; }
+  to   { height: 1.5rem; }
+}
