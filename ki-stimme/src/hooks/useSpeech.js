@@ -1,56 +1,78 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 
-export default function useSpeech() {
-  const [voices, setVoices] = useState([])
+export default function useSpeech(lang) {
+  const [allVoices, setAllVoices] = useState([])
   const [voiceURI, setVoiceURI] = useState('')
   const [rate, setRate] = useState(1)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
+  const [spokenText, setSpokenText] = useState('')
+  const [charIndex, setCharIndex] = useState(-1)
+  const currentRef = useRef(null)
 
   useEffect(() => {
     const synth = window.speechSynthesis
+    const load = () => setAllVoices(synth.getVoices())
 
-    const loadVoices = () => {
-      const all = synth.getVoices()
-      const german = all.filter((v) => v.lang.startsWith('de'))
-      const list = german.length > 0 ? german : all
-      setVoices(list)
-      setVoiceURI((prev) => prev || list[0]?.voiceURI || '')
-    }
-
-    loadVoices()
-    synth.addEventListener('voiceschanged', loadVoices)
+    load()
+    synth.addEventListener('voiceschanged', load)
 
     return () => {
-      synth.removeEventListener('voiceschanged', loadVoices)
+      synth.removeEventListener('voiceschanged', load)
       synth.cancel()
     }
   }, [])
 
-  const speak = (text, pitch = 1) => {
+  // nur Stimmen der gewählten Sprache anzeigen
+  const voices = useMemo(() => {
+    const prefix = lang.slice(0, 2).toLowerCase()
+    const matching = allVoices.filter((v) => v.lang.toLowerCase().startsWith(prefix))
+    return matching.length > 0 ? matching : allVoices
+  }, [allVoices, lang])
+
+  const selectedVoiceURI = voices.some((v) => v.voiceURI === voiceURI)
+    ? voiceURI
+    : voices[0]?.voiceURI || ''
+
+  const reset = () => {
+    setIsSpeaking(false)
+    setIsPaused(false)
+    setCharIndex(-1)
+  }
+
+  const speak = (text, pitch = 1, rateFactor = 1) => {
     if (!text.trim()) return
     const synth = window.speechSynthesis
     synth.cancel()
 
     const speech = new SpeechSynthesisUtterance(text)
-    speech.lang = 'de-DE'
-    speech.rate = rate
-    speech.pitch = pitch
+    speech.lang = lang
+    speech.rate = Math.min(2, Math.max(0.5, rate * rateFactor))
+    speech.pitch = Math.min(2, Math.max(0, pitch))
 
-    const voice = voices.find((v) => v.voiceURI === voiceURI)
+    const voice = voices.find((v) => v.voiceURI === selectedVoiceURI)
     if (voice) speech.voice = voice
 
+    currentRef.current = speech
+    setSpokenText(text)
+    setCharIndex(-1)
+
     speech.onstart = () => {
+      if (currentRef.current !== speech) return
       setIsSpeaking(true)
       setIsPaused(false)
     }
+    speech.onboundary = (e) => {
+      if (currentRef.current !== speech) return
+      setCharIndex(e.charIndex)
+    }
     speech.onend = () => {
-      setIsSpeaking(false)
-      setIsPaused(false)
+      if (currentRef.current !== speech) return
+      reset()
     }
     speech.onerror = () => {
-      setIsSpeaking(false)
-      setIsPaused(false)
+      if (currentRef.current !== speech) return
+      reset()
     }
 
     synth.speak(speech)
@@ -67,10 +89,24 @@ export default function useSpeech() {
   }
 
   const stop = () => {
+    currentRef.current = null
     window.speechSynthesis.cancel()
-    setIsSpeaking(false)
-    setIsPaused(false)
+    reset()
   }
 
-  return { voices, voiceURI, setVoiceURI, rate, setRate, isSpeaking, isPaused, speak, pause, resume, stop }
+  return {
+    voices,
+    voiceURI: selectedVoiceURI,
+    setVoiceURI,
+    rate,
+    setRate,
+    isSpeaking,
+    isPaused,
+    spokenText,
+    charIndex,
+    speak,
+    pause,
+    resume,
+    stop,
+  }
 }

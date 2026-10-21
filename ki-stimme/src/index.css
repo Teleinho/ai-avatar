@@ -2,6 +2,8 @@
 
 .mouth-talk {
   width: 2.5rem;
+  background-color: #1f2937;
+  border-radius: 9999px;
   animation: talk 0.25s infinite alternate;
 }
 

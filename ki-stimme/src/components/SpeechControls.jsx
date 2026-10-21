@@ -1,13 +1,28 @@
 export default function SpeechControls({
-  voices, voiceURI, setVoiceURI, rate, setRate,
-  isSpeaking, isPaused, hasText, onSpeak, onPause, onResume, onStop,
+  languages, lang, setLang,
+  voices, voiceURI, setVoiceURI,
+  rate, setRate,
+  isSpeaking, isPaused, hasText,
+  onSpeak, onPause, onResume, onStop,
 }) {
   return (
     <div className="card shadow-sm">
       <div className="card-body">
-        <h2 className="h5">Stimme & Geschwindigkeit</h2>
+        <h2 className="h5">Sprache, Stimme & Geschwindigkeit</h2>
 
-        <label className="form-label mt-2" htmlFor="voice">Stimme:</label>
+        <label className="form-label mt-2" htmlFor="lang">Sprache:</label>
+        <select
+          id="lang"
+          className="form-select"
+          value={lang}
+          onChange={(e) => setLang(e.target.value)}
+        >
+          {languages.map((l) => (
+            <option key={l.code} value={l.code}>{l.label}</option>
+          ))}
+        </select>
+
+        <label className="form-label mt-3" htmlFor="voice">Stimme:</label>
         <select
           id="voice"
           className="form-select"
